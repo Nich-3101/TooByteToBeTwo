@@ -7,7 +7,7 @@ import keyboard
 env = gym.make("PandaReach-v3", render_mode="human")
 obs, _ = env.reset()
 
-delta = 0.05
+delta = 0.2
 
 while True:
     action = np.zeros(3)  # Correct shape for PandaReach-v3
