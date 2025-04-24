@@ -11,6 +11,10 @@ from collections import deque, namedtuple
 import random
 
 from gymnasium.spaces import flatten, flatten_space
+from panda_gym import reward_type
+
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+print(f"Using device: {device}")
 
 # ----------------------------
 #  Replay Buffer
@@ -84,7 +88,7 @@ class DDPGAgent:
             gamma=0.99, tau=0.005,
             buffer_size=int(1e6), batch_size=256,
             noise_std=0.1,
-            device="cuda"
+            device=device
     ):
         self.device     = device
         self.gamma, self.tau = gamma, tau
@@ -159,7 +163,7 @@ class DDPGAgent:
 #  Training Loop
 # ----------------------------
 def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
-    env = gym.make(env_name, render_mode="human")
+    env = gym.make(env_name, render_mode="human", reward_type="dense")
 
     # --- handle Dict observations:
     obs_space    = env.observation_space
@@ -167,7 +171,7 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     act_dim      = env.action_space.shape[0]
     act_limit    = env.action_space.high[0]
 
-    agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device="cuda")
+    agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device=device)
 
     reward_hist = []
     best_avg    = -np.inf
@@ -205,13 +209,13 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     print("⏹️ Training complete!")
 
 def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
-    env = gym.make(env_name, render_mode="human")
+    env = gym.make(env_name, render_mode="human", reward_type="dense")
     obs_space = env.observation_space
     flat_obs_dim = int(flatten_space(obs_space).shape[0])
     act_dim = env.action_space.shape[0]
     act_limit = env.action_space.high[0]
 
-    agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device="cuda")
+    agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device=device)
     agent.actor.load_state_dict(torch.load("best_actor.pth"))
 
     for ep in range(1, episodes+1):
@@ -220,7 +224,7 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
         ep_ret     = 0
 
         for t in range(max_steps):
-            time.sleep(0.01)
+            time.sleep(0.1)
             env.render()
             a = agent.select_action(obs, noise=False)
             raw_next, r, term, trunc, _ = env.step(a)
@@ -237,5 +241,5 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
     env.close()
 
 if __name__ == "__main__":
-    # train(episodes=10, max_steps=200, render=True)
-    evaluate(episodes=10, max_steps=200)
+    # train(episodes=1000, max_steps=200, render=True)
+    evaluate(episodes=100, max_steps=200)
