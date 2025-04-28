@@ -9,6 +9,8 @@ import torch.nn as nn
 import torch.optim as optim
 from collections import deque, namedtuple
 import random
+import matplotlib.pyplot as plt
+import matplotlib
 
 from gymnasium.spaces import flatten, flatten_space
 from panda_gym import reward_type
@@ -172,6 +174,7 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     act_limit    = env.action_space.high[0]
 
     agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device=device)
+    agent.actor.load_state_dict(torch.load("best_actor.pth"))
 
     reward_hist = []
     best_avg    = -np.inf
@@ -206,6 +209,18 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
             torch.save(agent.actor.state_dict(), "best_actor.pth")
 
     env.close()
+
+    # Plotting
+    plt.figure(figsize=(10, 5))
+    plt.plot(reward_hist, label='Episode Reward')
+    plt.plot(np.convolve(reward_hist, np.ones(20)/20, mode='valid'), label='20-Episode Avg')
+    plt.title('Training Progress')
+    plt.xlabel('Episode')
+    plt.ylabel('Reward')
+    plt.legend()
+    plt.grid()
+    plt.savefig('training_progress8-max_steps-10.png')
+    plt.show()
     print("⏹️ Training complete!")
 
 def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
@@ -241,5 +256,5 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
     env.close()
 
 if __name__ == "__main__":
-    # train(episodes=1000, max_steps=200, render=True)
-    evaluate(episodes=100, max_steps=200)
+    # train(episodes=600, max_steps=10, render=True)
+    evaluate(episodes=100, max_steps=5)
