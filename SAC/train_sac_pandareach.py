@@ -202,7 +202,7 @@ class SACAgent:
         torch.save(self.policy.state_dict(), path)
 
     def load(self, path="best_policy.pth"):
-        self.policy.load_state_dict(torch.load(path))
+        self.policy.load_state_dict(torch.load(path, map_location=torch.device(device)))
 
 # ----------------------------
 #  Training Loop
@@ -279,7 +279,7 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
         obs = flatten(obs_space, raw_obs)
         ep_ret = 0
         for t in range(max_steps):
-            time.sleep(0.1)
+            #time.sleep(0.1)
             env.render()
             a = agent.select_action(obs, evaluate=True)
             raw_next, r, term, trunc, _ = env.step(a)
