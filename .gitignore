@@ -1,1 +1,3 @@
 /Robot-arm-control-with-RL-main/
+**/*.pth
+**/*.png
