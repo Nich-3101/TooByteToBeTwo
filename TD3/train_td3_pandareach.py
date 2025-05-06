@@ -1,4 +1,5 @@
 import os
+import time
 
 import gymnasium as gym
 import panda_gym            # registers PandaReach-v3
@@ -198,6 +199,9 @@ class TD3Agent:
 
 
 def train(env_name="PandaReach-v3", episodes=300, max_steps=100, render=False):
+    # Start timing
+    start_time = time.time()
+
     env = gym.make(env_name, render_mode="human", reward_type="dense")
 
     # --- handle Dict observations:
@@ -249,6 +253,12 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=100, render=False):
 
     env.close()
 
+    # End timing
+    end_time = time.time()
+    training_time = end_time - start_time
+    mins, secs = divmod(training_time, 60)
+    print(f"\n⏱️ Total training time: {int(mins)} minutes {int(secs)} seconds")
+
     # Plotting
     plt.figure(figsize=(10, 5))
     plt.plot(reward_hist, label='Episode Reward')
@@ -258,9 +268,9 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=100, render=False):
     plt.ylabel('Reward')
     plt.legend()
     plt.grid()
-    plt.savefig('training_progress1-max_steps-100.png')
+    plt.savefig('training_progress1-max_steps-5.png')
     plt.show()
-    print("⏹️ Training complete!")
+    print("⏹️ TD3 Model Training complete!")
 
 
 # ----------------
@@ -294,5 +304,5 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
 
 
 if __name__ == "__main__":
-    # train(episodes=700, max_steps=50, render=True)
-    evaluate(episodes=100, max_steps=5)
+    train(episodes=700, max_steps=5, render=True)
+    # evaluate(episodes=100, max_steps=5)

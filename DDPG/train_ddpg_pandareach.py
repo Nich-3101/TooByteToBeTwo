@@ -165,6 +165,9 @@ class DDPGAgent:
 #  Training Loop
 # ----------------------------
 def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
+    # Training Start timing
+    start_time = time.time()
+
     env = gym.make(env_name, render_mode="human", reward_type="dense")
 
     # --- handle Dict observations:
@@ -174,7 +177,7 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     act_limit    = env.action_space.high[0]
 
     agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device=device)
-    agent.actor.load_state_dict(torch.load("best_actor2.pth"))
+    # agent.actor.load_state_dict(torch.load("best_actor2.pth"))
 
     reward_hist = []
     best_avg    = -np.inf
@@ -209,6 +212,12 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
             torch.save(agent.actor.state_dict(), "best_actor.pth")
 
     env.close()
+
+    # End timing
+    end_time = time.time()
+    training_time = end_time - start_time
+    mins, secs = divmod(training_time, 60)
+    print(f"\n⏱️ Total training time: {int(mins)} minutes {int(secs)} seconds")
 
     # Plotting
     plt.figure(figsize=(10, 5))
@@ -256,5 +265,5 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
     env.close()
 
 if __name__ == "__main__":
-    # train(episodes=600, max_steps=10, render=True)
-    evaluate(episodes=100, max_steps=5)
+    train(episodes=700, max_steps=5, render=True)
+    # evaluate(episodes=100, max_steps=5)

@@ -208,6 +208,9 @@ class SACAgent:
 #  Training Loop
 # ----------------------------
 def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
+    # Training start timing
+    start_time = time.time()
+
     env = gym.make(env_name, render_mode="human", reward_type="dense")
     obs_space = env.observation_space
     flat_obs_dim = int(flatten_space(obs_space).shape[0])
@@ -247,6 +250,12 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
             agent.save("best_policy.pth")
 
     env.close()
+
+    # End timing
+    end_time = time.time()
+    training_time = end_time - start_time
+    mins, secs = divmod(training_time, 60)
+    print(f"\n⏱️ Total training time: {int(mins)} minutes {int(secs)} seconds")
 
     # Plotting
     plt.figure(figsize=(10, 5))
