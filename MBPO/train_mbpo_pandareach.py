@@ -148,9 +148,9 @@ def generate_model_rollouts(model, policy, replay, rollout_length=1, batch_size=
         obs = next_obs
     return synthetic
 
-# ----------------------------
+# ----------
 #  SAC Agent
-# ----------------------------
+# ----------
 class SACAgent:
     def __init__(self,
                  obs_dim, act_dim, act_limit,

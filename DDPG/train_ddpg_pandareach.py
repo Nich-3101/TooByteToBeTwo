@@ -108,7 +108,7 @@ class DDPGAgent:
         self.actor_tgt.load_state_dict(self.actor.state_dict())
         self.critic_tgt.load_state_dict(self.critic.state_dict())
 
-        # Optims
+        # Optimizers
         self.a_opt = optim.Adam(self.actor.parameters(),  lr=actor_lr)
         self.c_opt = optim.Adam(self.critic.parameters(), lr=critic_lr)
 
@@ -174,7 +174,7 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     act_limit    = env.action_space.high[0]
 
     agent = DDPGAgent(flat_obs_dim, act_dim, act_limit, device=device)
-    agent.actor.load_state_dict(torch.load("best_actor.pth"))
+    agent.actor.load_state_dict(torch.load("best_actor2.pth"))
 
     reward_hist = []
     best_avg    = -np.inf
