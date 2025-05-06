@@ -350,9 +350,6 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
         print(f"Ep {ep:3d}  Return: {ep_ret:7.3f}")
     env.close()
 
-
-
-
 if __name__ == "__main__":
     train(episodes=1000, max_steps=50, render=True)
     #evaluate(episodes=100, max_steps=5)

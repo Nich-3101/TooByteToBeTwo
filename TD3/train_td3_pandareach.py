@@ -191,18 +191,13 @@ class TD3Agent:
             for param, target_param in zip(self.critic2.parameters(), self.critic2_target.parameters()):
                 target_param.data.copy_(self.tau * param.data + (1 - self.tau) * target_param.data)
 
-    def save(self, filename):
-        torch.save(self.actor.state_dict(), filename + "_actor.pth")
-        torch.save(self.critic1.state_dict(), filename + "_critic1.pth")
-        torch.save(self.critic2.state_dict(), filename + "_critic2.pth")
-
     def load(self, filename):
-        self.actor.load_state_dict(torch.load(filename + "_actor.pth"))
-        self.critic1.load_state_dict(torch.load(filename + "_critic1.pth"))
-        self.critic2.load_state_dict(torch.load(filename + "_critic2.pth"))
+        self.actor.load_state_dict(torch.load(filename))
+        self.critic1.load_state_dict(torch.load(filename))
+        self.critic2.load_state_dict(torch.load(filename))
 
 
-def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
+def train(env_name="PandaReach-v3", episodes=300, max_steps=100, render=False):
     env = gym.make(env_name, render_mode="human", reward_type="dense")
 
     # --- handle Dict observations:
@@ -263,7 +258,7 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     plt.ylabel('Reward')
     plt.legend()
     plt.grid()
-    plt.savefig('training_progress1-max_steps-200.png')
+    plt.savefig('training_progress1-max_steps-100.png')
     plt.show()
     print("⏹️ Training complete!")
 
@@ -279,7 +274,7 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
     act_limit = env.action_space.high[0]
 
     agent = TD3Agent(flat_obs_dim, act_dim, act_limit)
-    agent.load("best_policy.pth")
+    agent.actor.load_state_dict(torch.load("best_actor.pth"))  # Only load actor
 
     for ep in range(1, episodes+1):
         raw_obs, _ = env.reset()
@@ -288,7 +283,7 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
         for t in range(max_steps):
             #time.sleep(0.1)
             env.render()
-            a = agent.select_action(obs, evaluate=True)
+            a = agent.select_action(obs)
             raw_next, r, term, trunc, _ = env.step(a)
             obs = flatten(obs_space, raw_next)
             ep_ret += r
@@ -299,5 +294,5 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
 
 
 if __name__ == "__main__":
-    train(episodes=700, max_steps=50, render=True)
-    #evaluate(episodes=100, max_steps=5)
+    # train(episodes=700, max_steps=50, render=True)
+    evaluate(episodes=100, max_steps=5)
