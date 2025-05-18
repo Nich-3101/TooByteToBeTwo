@@ -11,9 +11,11 @@ from collections import deque, namedtuple
 import random
 import matplotlib.pyplot as plt
 from gymnasium.spaces import flatten, flatten_space
+from torch.utils.tensorboard import SummaryWriter
 
 # Device
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+# device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = "cpu"
 print(f"Using device: {device}")
 
 # ----------------------------
@@ -154,7 +156,7 @@ class SACAgent:
     def store(self, *trans):
         self.replay.push(*trans)
 
-    def update(self):
+    def update(self, step):
         if len(self.replay) < self.batch_size:
             return
         # Sample batch
@@ -180,17 +182,31 @@ class SACAgent:
         self.q1_opt.zero_grad(); q1_loss.backward(); self.q1_opt.step()
         self.q2_opt.zero_grad(); q2_loss.backward(); self.q2_opt.step()
 
-        # Policy update
+        # Log critic losses
+        self.writer.add_scalar("Loss/Q1", q1_loss.item(), step)
+        self.writer.add_scalar("Loss/Q2", q2_loss.item(), step)
+
+        # Log Critic Q-values
+        self.writer.add_scalar("Critic/Q1", q1_val.mean().item(), step)
+        self.writer.add_scalar("Critic/Q2", q2_val.mean().item(), step)
+
+        # Policy and alpha update
         new_act, logp = self.policy.sample(obs)
         q1_new = self.q1(obs, new_act)
         q2_new = self.q2(obs, new_act)
         q_new_min = torch.min(q1_new, q2_new)
         policy_loss = (self.alpha * logp - q_new_min).mean()
         self.policy_opt.zero_grad(); policy_loss.backward(); self.policy_opt.step()
+        self.writer.add_scalar("Loss/Policy", policy_loss.item(), step)
 
-        # Alpha update
         alpha_loss = -(self.log_alpha * (logp + self.target_entropy).detach()).mean()
         self.alpha_opt.zero_grad(); alpha_loss.backward(); self.alpha_opt.step()
+        self.writer.add_scalar("Loss/Alpha", alpha_loss.item(), step)
+
+        # Log policy only
+        self.writer.add_scalar("Policy/Entropy", -logp.mean().item(), step)
+        # log alpha only
+        self.writer.add_scalar("Alpha", self.alpha.item(), step)
 
         # Soft update targets
         for p, p_t in zip(self.q1.parameters(), self.q1_tgt.parameters()):
@@ -208,21 +224,28 @@ class SACAgent:
 #  Training Loop
 # ----------------------------
 def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
-    # Training start timing
-    start_time = time.time()
+    writer = SummaryWriter(log_dir="runs/SAC")
 
-    env = gym.make(env_name, render_mode="human", reward_type="dense")
+    start_time = time.time()
+    if render:
+        env = gym.make(env_name, render_mode="human", reward_type="dense")
+    else:
+        env = gym.make(env_name, reward_type="dense")
+
     obs_space = env.observation_space
     flat_obs_dim = int(flatten_space(obs_space).shape[0])
     act_dim = env.action_space.shape[0]
     act_limit = env.action_space.high[0]
 
     agent = SACAgent(flat_obs_dim, act_dim, act_limit)
-    agent.load("best_policy.pth")
+    agent.writer = writer  # attach writer
+
     reward_hist = []
     best_avg = -np.inf
+    step = 0
 
     for ep in range(1, episodes+1):
+        time_start = time.time()
         raw_obs, _ = env.reset()
         obs = flatten(obs_space, raw_obs)
         ep_ret = 0
@@ -235,29 +258,39 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
             done = term or trunc
 
             agent.store(obs, a, r, next_obs, done)
-            agent.update()
+            agent.update(step)
+            step += 1
 
             obs = next_obs
             ep_ret += r
+
+            # log reward per step
+            writer.add_scalar("Reward/Step", r, step)
             if done:
                 break
 
         reward_hist.append(ep_ret)
         avg20 = np.mean(reward_hist[-20:])
+        time_end = time.time()
         print(f"Ep {ep:3d}  Return: {ep_ret:7.3f}  Avg20: {avg20:7.3f}")
+
+        # log time per episode
+        writer.add_scalar("Time/Episode", time_end - time_start, ep)
+        writer.add_scalar("Reward/Episode", ep_ret, ep)
+        writer.add_scalar("Reward/Avg20", avg20, ep)
+
         if avg20 > best_avg:
             best_avg = avg20
             agent.save("best_policy.pth")
 
     env.close()
+    writer.close()
 
-    # End timing
     end_time = time.time()
-    training_time = end_time - start_time
-    mins, secs = divmod(training_time, 60)
-    print(f"\n⏱️ Total training time: {int(mins)} minutes {int(secs)} seconds")
+    mins, secs = divmod(end_time - start_time, 60)
+    print(f"\n⏱️ Total training time: {int(mins)}m {int(secs)}s")
 
-    # Plotting
+    # Offline plot
     plt.figure(figsize=(10, 5))
     plt.plot(reward_hist, label='Episode Reward')
     plt.plot(np.convolve(reward_hist, np.ones(20)/20, mode='valid'), label='20-Episode Avg')
@@ -266,13 +299,10 @@ def train(env_name="PandaReach-v3", episodes=300, max_steps=200, render=False):
     plt.ylabel('Reward')
     plt.legend()
     plt.grid()
-    plt.savefig('sac_training_2_50steps.png')
+    plt.savefig('sac_training.png')
     plt.show()
     print("⏹️ SAC Training complete!")
 
-# ----------------------------
-#  Evaluation Loop
-# ----------------------------
 def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
     env = gym.make(env_name, render_mode="human", reward_type="dense")
     obs_space = env.observation_space
@@ -288,7 +318,7 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
         obs = flatten(obs_space, raw_obs)
         ep_ret = 0
         for t in range(max_steps):
-            #time.sleep(0.1)
+            time.sleep(0.1)
             env.render()
             a = agent.select_action(obs, evaluate=True)
             raw_next, r, term, trunc, _ = env.step(a)
@@ -300,5 +330,5 @@ def evaluate(env_name="PandaReach-v3", episodes=10, max_steps=200):
     env.close()
 
 if __name__ == "__main__":
-    # train(episodes=1000, max_steps=50, render=True)
-    evaluate(episodes=100, max_steps=5)
+    train(episodes=1000, max_steps=50, render=True)
+    # evaluate(episodes=100, max_steps=5)
